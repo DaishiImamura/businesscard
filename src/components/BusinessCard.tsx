@@ -22,6 +22,7 @@ interface BusinessCardProps {
   onFlip?: (isFlipped: boolean) => void;
   enableParallax?: boolean;
   cardWidth?: number;
+  rotateMode?: 'none' | '90';
 }
 
 export default function BusinessCard({
@@ -29,6 +30,7 @@ export default function BusinessCard({
   onFlip,
   enableParallax = true,
   cardWidth,
+  rotateMode = 'none',
 }: BusinessCardProps) {
   const [flipped, setFlipped] = useState(false);
 
@@ -61,10 +63,18 @@ export default function BusinessCard({
     .enabled(enableParallax)
     .onUpdate((event) => {
       // カードの中心からの相対距離をベースに傾き量を計算 (最大±15度)
-      const relativeX = (event.x - currentWidth / 2) / (currentWidth / 2);
-      const relativeY = (event.y - currentHeight / 2) / (currentHeight / 2);
-      tiltX.value = -relativeY * 15; // Y方向のドラッグでX軸回転
-      tiltY.value = relativeX * 15;  // X方向のドラッグでY軸回転
+      if (rotateMode === '90') {
+        // 90度回転時はドラッグのX/Y軸を反転させて直感的な傾きにする
+        const relativeX = (event.y - currentHeight / 2) / (currentHeight / 2);
+        const relativeY = -(event.x - currentWidth / 2) / (currentWidth / 2);
+        tiltX.value = -relativeY * 15;
+        tiltY.value = relativeX * 15;
+      } else {
+        const relativeX = (event.x - currentWidth / 2) / (currentWidth / 2);
+        const relativeY = (event.y - currentHeight / 2) / (currentHeight / 2);
+        tiltX.value = -relativeY * 15;
+        tiltY.value = relativeX * 15;
+      }
     })
     .onEnd(() => {
       // 指を離したら滑らかに元の角度に戻る
@@ -74,12 +84,16 @@ export default function BusinessCard({
 
   // パララックスとフリップを組み合わせた3D変形スタイル
   const animatedCardStyle = useAnimatedStyle(() => {
+    const transforms: any[] = [
+      { perspective: 1000 },
+      { rotateX: `${tiltX.value}deg` },
+      { rotateY: `${rotateY.value + tiltY.value}deg` },
+    ];
+    if (rotateMode === '90') {
+      transforms.push({ rotate: '90deg' });
+    }
     return {
-      transform: [
-        { perspective: 1000 },
-        { rotateX: `${tiltX.value}deg` },
-        { rotateY: `${rotateY.value + tiltY.value}deg` },
-      ],
+      transform: transforms,
     };
   });
 

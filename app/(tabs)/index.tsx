@@ -7,13 +7,19 @@ import BusinessCard from '../../src/components/BusinessCard';
 import { getMyCard, initializeMyCardIfEmpty } from '../../src/utils/storage';
 import { BusinessCardData } from '../../src/types/card';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function MyCardScreen() {
   const router = useRouter();
   const [myCard, setMyCard] = useState<BusinessCardData | null>(null);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // 横向き全画面表示時のカード幅の計算
+  const landscapeCardHeight = SCREEN_WIDTH - 24; // 回転後の高さ ＝ 画面の横幅から余白を引いたもの
+  const landscapeCardWidth = landscapeCardHeight / 0.58;
+  const maxLandscapeCardWidth = SCREEN_HEIGHT - 160; // 画面の高さをはみ出さないように制限
+  const finalLandscapeWidth = Math.min(landscapeCardWidth, maxLandscapeCardWidth);
 
   // 画面フォーカス時にデータを再読み込み
   useFocusEffect(
@@ -148,13 +154,14 @@ export default function MyCardScreen() {
               </TouchableOpacity>
 
               <TouchableWithoutFeedback>
-                <View style={styles.expandedCardWrapper}>
+                <View style={[styles.expandedCardWrapper, { height: finalLandscapeWidth, justifyContent: 'center' }]}>
                   <BusinessCard
                     data={myCard}
                     enableParallax={true}
-                    cardWidth={SCREEN_WIDTH - 16}
+                    cardWidth={finalLandscapeWidth}
+                    rotateMode="90"
                   />
-                  <Text style={styles.expandedHintText}>タップして裏返せます</Text>
+                  <Text style={[styles.expandedHintText, { marginTop: 24 }]}>タップして裏返せます</Text>
                 </View>
               </TouchableWithoutFeedback>
 
