@@ -9,12 +9,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 //   「ウェブアプリ設定」から取得した実際のキー群に書き換えてください。
 // =================================================================
 const firebaseConfig = {
-  apiKey: "AIzaSyDummyKey_ForInitializationTestingOnly",
-  authDomain: "businesscard-demo-54.firebaseapp.com",
-  projectId: "businesscard-demo-54",
-  storageBucket: "businesscard-demo-54.appspot.com",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:a1b2c3d4e5f6g7h8i9j0"
+  apiKey: "AIzaSyBrbrQFLQgxaicI3jIt4vSkr2G2eNnPDA4",
+  authDomain: "businesscard-a7ce5.firebaseapp.com",
+  projectId: "businesscard-a7ce5",
+  storageBucket: "businesscard-a7ce5.firebasestorage.app",
+  messagingSenderId: "403382464198",
+  appId: "1:403382464198:web:a895601529f9e14a34b1c7"
 };
 
 // アプリの重複初期化を防止
