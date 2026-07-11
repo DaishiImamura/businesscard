@@ -1,16 +1,73 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { LogIn, Mail, Lock, UserPlus, ShieldAlert } from 'lucide-react-native';
-import { auth } from '../../src/utils/firebase';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import { LogIn, Mail, Lock, UserPlus, ShieldAlert, Chrome } from 'lucide-react-native';
+import { auth, db } from '../../src/utils/firebase';
+
+// WebBrowserでのOAuthリダイレクトのハンドリングを完了させる
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // =================================================================
+  // Google ログイン設定 (Expo Auth Session)
+  // ※実機での本番動作には、Google Cloud ConsoleおよびFirebaseコンソールで
+  //   取得した各クライアントIDを入力する必要があります。
+  // =================================================================
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    clientId: '601234567890-webdummyclientid.apps.googleusercontent.com', // Web用クライアントID
+    iosClientId: '601234567890-iosdummyclientid.apps.googleusercontent.com', // iOS用クライアントID
+    androidClientId: '601234567890-androiddummyclientid.apps.googleusercontent.com', // Android用クライアントID
+  });
+
+  // Google認証レスポンスの監視
+  useEffect(() => {
+    if (response?.type === 'success' && response.authentication?.idToken) {
+      const { idToken } = response.authentication;
+      handleGoogleSignIn(idToken);
+    }
+  }, [response]);
+
+  // Googleアカウントによるログイン ＆ 新規ユーザー初期化処理
+  const handleGoogleSignIn = async (idToken: string) => {
+    setLoading(true);
+    try {
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCredential = await signInWithCredential(auth, credential);
+      const user = userCredential.user;
+
+      // 初めてログインしたユーザーの場合、Firestoreにユーザープロフィールを作成
+      const userDocRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userDocRef);
+
+      if (!userSnap.exists()) {
+        await setDoc(userDocRef, {
+          id: user.uid,
+          name: user.displayName || 'Google ユーザー',
+          email: user.email?.toLowerCase() || '',
+          role: 'user', // デフォルト一般ユーザー
+          purchasedTemplates: [],
+          createdAt: new Date().toISOString(),
+        });
+      }
+
+      router.replace('/(tabs)');
+    } catch (error: any) {
+      console.error('Google Sign-in failed', error);
+      Alert.alert('Googleログインエラー', 'Googleアカウントでの認証に失敗しました。');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -21,8 +78,6 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
-      // ログイン成功時、Auth Gateが検知して自動的にメイン画面へ遷移するため
-      // ここでの明示的な router.replace は不要ですが、念のため記述しておきます
       router.replace('/(tabs)');
     } catch (error: any) {
       console.error(error);
@@ -40,7 +95,6 @@ export default function LoginScreen() {
     }
   };
 
-  // テスト用：ワンタップでかんたんログインできるデモアカウント
   const handleDemoLogin = async (type: 'admin' | 'user') => {
     const demoEmail = type === 'admin' ? 'admin@demo.com' : 'user@demo.com';
     const demoPassword = 'password123';
@@ -50,8 +104,6 @@ export default function LoginScreen() {
       await signInWithEmailAndPassword(auth, demoEmail, demoPassword);
       router.replace('/(tabs)');
     } catch (error: any) {
-      // デモアカウントが存在しない場合は、その場で作ってログインする流れにするため
-      // ここでエラーが出た場合は登録画面に促すか、警告を出します
       Alert.alert(
         'デモログイン情報',
         `デモアカウント (${demoEmail}) が登録されていません。まずは「新規登録」からこのメールアドレスと適当なパスワードでアカウントを作成してください。\n\n※adminで登録したアカウントは、Firebaseコンソールから role を "admin" に書き換えることで管理者機能が有効化されます。`
@@ -118,6 +170,29 @@ export default function LoginScreen() {
               </>
             )}
           </TouchableOpacity>
+
+          {/* 区切り線 */}
+          <View style={styles.dividerContainer}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>または</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Google ログインボタン */}
+          <TouchableOpacity 
+            style={[styles.googleBtn, (!request || loading) && styles.disabledBtn]} 
+            onPress={() => promptAsync()}
+            disabled={!request || loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#64748b" />
+            ) : (
+              <>
+                <Chrome size={20} color="#ea4335" style={styles.btnIcon} />
+                <Text style={styles.googleBtnText}>Google でサインイン</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* アカウント作成への誘導 */}
@@ -159,7 +234,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a', // スレートダーク背景
+    backgroundColor: '#0f172a',
   },
   content: {
     flex: 1,
@@ -228,16 +303,52 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  googleBtn: {
+    backgroundColor: '#ffffff', // Googleサインイン用白背景
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 56,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   disabledBtn: {
-    opacity: 0.7,
+    opacity: 0.6,
   },
   btnIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   loginBtnText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  googleBtnText: {
+    color: '#1e293b', // ダークグレーテキスト
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  dividerText: {
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: '600',
+    paddingHorizontal: 16,
   },
   signupLink: {
     flexDirection: 'row',
@@ -255,7 +366,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   demoSection: {
-    marginTop: 48,
+    marginTop: 32,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 20,
