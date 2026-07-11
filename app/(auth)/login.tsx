@@ -6,6 +6,7 @@ import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential } 
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import * as AuthSession from 'expo-auth-session';
 import { LogIn, Mail, Lock, UserPlus, ShieldAlert, Chrome } from 'lucide-react-native';
 import { auth, db } from '../../src/utils/firebase';
 
@@ -17,6 +18,13 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // デバッグ用：アプリが認識している実際のリダイレクトURIを画面に表示
+  useEffect(() => {
+    const redirectUri = AuthSession.makeRedirectUri();
+    Alert.alert("デバッグ: 送信中リダイレクトURI", redirectUri);
+    console.log("ACTUAL REDIRECT URI:", redirectUri);
+  }, []);
 
   // =================================================================
   // Google ログイン設定 (Expo Auth Session)
