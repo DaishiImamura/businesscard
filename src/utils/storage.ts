@@ -1,8 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { doc, getDoc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { BusinessCardData, DEFAULT_DESIGN } from '../types/card';
+import { auth, db } from './firebase';
 
 const MY_CARD_KEY = '@my_business_card';
 const WALLET_CARDS_KEY = '@wallet_business_cards';
+const PURCHASED_TEMPLATES_KEY = '@purchased_templates';
 
 // 初期のダミーデータ（名刺入れが空の場合に表示）
 const DUMMY_WALLET_CARDS: BusinessCardData[] = [
@@ -52,8 +55,25 @@ const DUMMY_WALLET_CARDS: BusinessCardData[] = [
 
 export async function getMyCard(): Promise<BusinessCardData | null> {
   try {
-    const jsonValue = await AsyncStorage.getItem(MY_CARD_KEY);
-    return jsonValue ? JSON.parse(jsonValue) : null;
+    // 1. まずローカルのキャッシュを取得
+    const localJson = await AsyncStorage.getItem(MY_CARD_KEY);
+    let card: BusinessCardData | null = localJson ? JSON.parse(localJson) : null;
+
+    // 2. ログインしていればFirestoreから最新データを取得してマージ
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const cardDocRef = doc(db, 'cards', currentUser.uid);
+      const cardSnap = await getDoc(cardDocRef);
+      
+      if (cardSnap.exists()) {
+        const firestoreCard = cardSnap.data() as BusinessCardData;
+        card = firestoreCard;
+        // ローカルキャッシュも同期更新
+        await AsyncStorage.setItem(MY_CARD_KEY, JSON.stringify(card));
+      }
+    }
+
+    return card;
   } catch (e) {
     console.error('Failed to get my card', e);
     return null;
@@ -64,6 +84,19 @@ export async function saveMyCard(card: BusinessCardData): Promise<boolean> {
   try {
     const jsonValue = JSON.stringify(card);
     await AsyncStorage.setItem(MY_CARD_KEY, jsonValue);
+
+    // ログイン中の場合はFirestoreにも書き込む
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      // ドキュメントIDをユーザーのUIDと一致させて保存
+      const cardDocRef = doc(db, 'cards', currentUser.uid);
+      await setDoc(cardDocRef, {
+        ...card,
+        id: currentUser.uid, // 強制的にマイ名刺IDをUIDに一致させる
+        updatedAt: Date.now()
+      }, { merge: true });
+    }
+
     return true;
   } catch (e) {
     console.error('Failed to save my card', e);
@@ -72,15 +105,25 @@ export async function saveMyCard(card: BusinessCardData): Promise<boolean> {
 }
 
 export async function initializeMyCardIfEmpty(): Promise<BusinessCardData> {
+  const currentUser = auth.currentUser;
   const existing = await getMyCard();
-  if (existing) return existing;
+  
+  if (existing) {
+    // すでに名刺データがあり、かつログイン中だがIDが一致していない場合は修正
+    if (currentUser && existing.id !== currentUser.uid) {
+      const updatedCard = { ...existing, id: currentUser.uid };
+      await saveMyCard(updatedCard);
+      return updatedCard;
+    }
+    return existing;
+  }
 
   const defaultCard: BusinessCardData = {
-    id: 'my-card-id',
-    name: 'あなたの名前',
+    id: currentUser ? currentUser.uid : 'my-card-id',
+    name: currentUser ? (currentUser.displayName || 'あなたの名前') : 'あなたの名前',
     company: '会社名 / 所属団体',
     role: '役職 / プロフィール',
-    email: 'your.email@example.com',
+    email: currentUser ? (currentUser.email || 'your.email@example.com') : 'your.email@example.com',
     phone: '',
     website: '',
     address: '',
@@ -213,6 +256,63 @@ export async function importAllData(jsonString: string): Promise<boolean> {
     return true;
   } catch (e) {
     console.error('Failed to import data', e);
+    return false;
+  }
+}
+
+// --- 購入済みプレミアムテンプレートの操作 ---
+
+export async function getPurchasedTemplates(): Promise<string[]> {
+  try {
+    // 1. まずローカルのキャッシュを取得
+    const localJson = await AsyncStorage.getItem(PURCHASED_TEMPLATES_KEY);
+    let purchased: string[] = localJson ? JSON.parse(localJson) : [];
+
+    // 2. ログインしていればFirestoreから最新データを取得してマージ
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      const userSnap = await getDoc(userDocRef);
+      
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        if (userData && Array.isArray(userData.purchasedTemplates)) {
+          purchased = userData.purchasedTemplates;
+          // キャッシュ同期
+          await AsyncStorage.setItem(PURCHASED_TEMPLATES_KEY, JSON.stringify(purchased));
+        }
+      }
+    }
+
+    return purchased;
+  } catch (e) {
+    console.error('Failed to get purchased templates', e);
+    return [];
+  }
+}
+
+export async function purchaseTemplate(templateId: string): Promise<boolean> {
+  try {
+    const purchased = await getPurchasedTemplates();
+    if (purchased.includes(templateId)) {
+      return true; // 既に購入済み
+    }
+
+    const updated = [...purchased, templateId];
+    await AsyncStorage.setItem(PURCHASED_TEMPLATES_KEY, JSON.stringify(updated));
+
+    // ログイン中の場合はFirestoreにも書き込む
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      await updateDoc(userDocRef, {
+        purchasedTemplates: arrayUnion(templateId)
+      });
+    }
+
+    return true;
+  } catch (e) {
+    console.error('Failed to purchase template', e);
     return false;
   }
 }

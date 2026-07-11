@@ -20,6 +20,7 @@ export interface BusinessCardData {
   logo?: string; // Base64 or local file URI
   isFavorite: boolean;
   tags: string[];
+  templateId?: string; // 適用されたテンプレートID (Canva等の背景画像用)
   createdAt: number;
 }
 

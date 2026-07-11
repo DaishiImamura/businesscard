@@ -14,9 +14,25 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { ArrowLeft, Save, User, Building, Mail, Phone, Globe, MapPin, AlignLeft, Image as ImageIcon } from 'lucide-react-native';
-import { getMyCard, saveMyCard } from '../src/utils/storage';
+import { 
+  ArrowLeft, 
+  Save, 
+  User, 
+  Building, 
+  Mail, 
+  Phone, 
+  Globe, 
+  MapPin, 
+  AlignLeft, 
+  Image as ImageIcon,
+  Palette,
+  Layers,
+  Crown,
+  Lock
+} from 'lucide-react-native';
+import { getMyCard, saveMyCard, getPurchasedTemplates, purchaseTemplate } from '../src/utils/storage';
 import { BusinessCardData, CardDesign } from '../src/types/card';
+import { TEMPLATES } from '../src/types/templates';
 import GradientPicker from '../src/components/GradientPicker';
 
 export default function EditCardScreen() {
@@ -41,6 +57,11 @@ export default function EditCardScreen() {
     cardPattern: 'glass',
   });
 
+  // デザインのタブ切り替え ('color': グラデーション, 'template': Canvaテンプレート)
+  const [editTab, setEditTab] = useState<'color' | 'template'>('color');
+  const [templateId, setTemplateId] = useState<string | undefined>(undefined);
+  const [purchasedTemplates, setPurchasedTemplates] = useState<string[]>([]);
+
   // 画像ステート
   const [avatar, setAvatar] = useState<string | undefined>(undefined);
   const [logo, setLogo] = useState<string | undefined>(undefined);
@@ -61,7 +82,16 @@ export default function EditCardScreen() {
         setDesign(data.design);
         setAvatar(data.avatar);
         setLogo(data.logo);
+        
+        setTemplateId(data.templateId);
+        if (data.templateId) {
+          setEditTab('template');
+        }
       }
+
+      // 購入済みテンプレートのロード
+      const purchased = await getPurchasedTemplates();
+      setPurchasedTemplates(purchased);
     };
     loadCardData();
   }, []);
@@ -90,6 +120,38 @@ export default function EditCardScreen() {
     }
   };
 
+  const handleSelectTemplate = async (id: string, isPremium: boolean) => {
+    if (!isPremium || purchasedTemplates.includes(id)) {
+      setTemplateId(id);
+      return;
+    }
+
+    const targetTpl = TEMPLATES.find(t => t.id === id);
+    if (!targetTpl) return;
+
+    Alert.alert(
+      'プレミアムテンプレートのアンロック',
+      `「${targetTpl.name}」をアンロックしますか？\n\n価格: ￥${targetTpl.price} (モック決済)`,
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '購入してアンロック',
+          onPress: async () => {
+            const success = await purchaseTemplate(id);
+            if (success) {
+              const updated = await getPurchasedTemplates();
+              setPurchasedTemplates(updated);
+              setTemplateId(id);
+              Alert.alert('アンロック完了', `「${targetTpl.name}」を使用できます。`);
+            } else {
+              Alert.alert('エラー', '購入処理に失敗しました。');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleSave = async () => {
     if (!name.trim()) {
       Alert.alert('入力エラー', 'お名前は必須項目です。');
@@ -115,6 +177,7 @@ export default function EditCardScreen() {
       design,
       avatar,
       logo,
+      templateId: editTab === 'template' ? templateId : undefined,
     };
 
     const success = await saveMyCard(updatedCard);
@@ -181,35 +244,101 @@ export default function EditCardScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* デザイン編集 */}
-          <GradientPicker
-            selectedStart={design.gradientStart}
-            selectedEnd={design.gradientEnd}
-            onSelect={(start, end) => setDesign({ ...design, gradientStart: start, gradientEnd: end })}
-          />
-
-          <View style={styles.patternSection}>
-            <Text style={styles.label}>カードの背景スタイル</Text>
-            <View style={styles.patternRow}>
-              {(['none', 'mesh', 'dots', 'glass'] as const).map((pat) => {
-                const isSelected = design.cardPattern === pat;
-                return (
-                  <TouchableOpacity
-                    key={pat}
-                    onPress={() => setDesign({ ...design, cardPattern: pat })}
-                    style={[styles.patternBtn, isSelected && styles.selectedPatternBtn]}
-                  >
-                    <Text style={[styles.patternBtnText, isSelected && styles.selectedPatternBtnText]}>
-                      {pat === 'none' && 'シンプル'}
-                      {pat === 'mesh' && 'メッシュ'}
-                      {pat === 'dots' && 'グリッドドット'}
-                      {pat === 'glass' && 'グラス風'}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+          {/* デザイン編集セクションのヘッダー */}
+          <Text style={styles.sectionLabel}>デザインのカスタマイズ</Text>
+          
+          {/* タブ切り替えボタン */}
+          <View style={styles.tabContainer}>
+            <TouchableOpacity 
+              style={[styles.tabButton, editTab === 'color' && styles.activeTabButton]}
+              onPress={() => setEditTab('color')}
+            >
+              <Palette size={16} color={editTab === 'color' ? '#ffffff' : '#94a3b8'} style={styles.tabIcon} />
+              <Text style={[styles.tabButtonText, editTab === 'color' && styles.activeTabButtonText]}>カラー</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.tabButton, editTab === 'template' && styles.activeTabButton]}
+              onPress={() => setEditTab('template')}
+            >
+              <Layers size={16} color={editTab === 'template' ? '#ffffff' : '#94a3b8'} style={styles.tabIcon} />
+              <Text style={[styles.tabButtonText, editTab === 'template' && styles.activeTabButtonText]}>テンプレート</Text>
+            </TouchableOpacity>
           </View>
+
+          {editTab === 'color' ? (
+            <>
+              <GradientPicker
+                selectedStart={design.gradientStart}
+                selectedEnd={design.gradientEnd}
+                onSelect={(start, end) => setDesign({ ...design, gradientStart: start, gradientEnd: end })}
+              />
+
+              <View style={styles.patternSection}>
+                <Text style={styles.label}>カードの背景スタイル</Text>
+                <View style={styles.patternRow}>
+                  {(['none', 'mesh', 'dots', 'glass'] as const).map((pat) => {
+                    const isSelected = design.cardPattern === pat;
+                    return (
+                      <TouchableOpacity
+                        key={pat}
+                        onPress={() => setDesign({ ...design, cardPattern: pat })}
+                        style={[styles.patternBtn, isSelected && styles.selectedPatternBtn]}
+                      >
+                        <Text style={[styles.patternBtnText, isSelected && styles.selectedPatternBtnText]}>
+                          {pat === 'none' && 'シンプル'}
+                          {pat === 'mesh' && 'メッシュ'}
+                          {pat === 'dots' && 'グリッドドット'}
+                          {pat === 'glass' && 'グラス風'}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            </>
+          ) : (
+            <View style={styles.templateSection}>
+              <Text style={styles.label}>名刺の背景テンプレート</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.templateScroll}>
+                {TEMPLATES.map((tpl) => {
+                  const isSelected = templateId === tpl.id;
+                  const isPurchased = !tpl.isPremium || purchasedTemplates.includes(tpl.id);
+                  const bgSource = typeof tpl.backgroundImage === 'string' ? { uri: tpl.backgroundImage } : tpl.backgroundImage;
+
+                  return (
+                    <TouchableOpacity
+                      key={tpl.id}
+                      style={[styles.templateCard, isSelected && styles.selectedTemplateCard]}
+                      onPress={() => handleSelectTemplate(tpl.id, tpl.isPremium)}
+                    >
+                      <View style={styles.templatePreviewWrapper}>
+                        <Image source={bgSource} style={styles.templatePreviewImage} />
+                        
+                        {/* 縦・横の向きバッジ */}
+                        <View style={styles.orientationBadge}>
+                          <Text style={styles.orientationBadgeText}>{tpl.orientation === 'portrait' ? '縦' : '横'}</Text>
+                        </View>
+
+                        {/* 未購入プレミアムのロックオーバーレイ */}
+                        {!isPurchased && (
+                          <View style={styles.lockOverlay}>
+                            <Lock size={16} color="#ffffff" />
+                            <Text style={styles.lockPrice}>￥{tpl.price}</Text>
+                          </View>
+                        )}
+                        {tpl.isPremium && isPurchased && (
+                          <View style={styles.premiumBadge}>
+                            <Crown size={10} color="#ffffff" />
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.templateName} numberOfLines={1}>{tpl.name}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
 
           {/* 基本情報フォーム */}
           <Text style={styles.sectionLabel}>基本情報</Text>
@@ -511,5 +640,139 @@ const styles = StyleSheet.create({
   textArea: {
     textAlignVertical: 'top',
     height: '100%',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#1e293b',
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 40,
+    borderRadius: 10,
+    gap: 8,
+  },
+  activeTabButton: {
+    backgroundColor: '#6366f1',
+    shadowColor: '#6366f1',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tabIcon: {
+    marginRight: 2,
+  },
+  tabButtonText: {
+    color: '#94a3b8',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  activeTabButtonText: {
+    color: '#ffffff',
+  },
+  templateSection: {
+    marginVertical: 12,
+  },
+  templateScroll: {
+    paddingVertical: 8,
+    gap: 12,
+  },
+  templateCard: {
+    width: 100,
+    alignItems: 'center',
+  },
+  selectedTemplateCard: {
+    // 選択時にカード全体をわずかに強調
+  },
+  templatePreviewWrapper: {
+    width: 90,
+    height: 140, // 縦向き基準の比率 (縦長に近く見せるためのデモサイズ)
+    borderRadius: 12,
+    backgroundColor: '#1e293b',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    overflow: 'hidden',
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectedTemplateCardImage: {
+    borderColor: '#6366f1',
+  },
+  templatePreviewImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  selectedTemplateCard: {
+    // 選択されたテンプレートカードのアウター枠線をハイライト
+  },
+  templatePreviewWrapper: {
+    width: 90,
+    height: 140,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    overflow: 'hidden',
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // 重複キーのクリーンアップと整理
+  orientationBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  orientationBadgeText: {
+    fontSize: 8,
+    color: '#e2e8f0',
+    fontWeight: 'bold',
+  },
+  lockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+  },
+  lockPrice: {
+    fontSize: 9,
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  premiumBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: '#eab308', // Amber 500
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ffffff',
+  },
+  templateName: {
+    fontSize: 11,
+    color: '#cbd5e1',
+    marginTop: 6,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });
