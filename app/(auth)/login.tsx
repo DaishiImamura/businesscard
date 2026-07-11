@@ -24,7 +24,7 @@ export default function LoginScreen() {
   //   取得した各クライアントIDを入力する必要があります。
   // =================================================================
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: '601234567890-webdummyclientid.apps.googleusercontent.com', // Web用クライアントID
+    clientId: '206177241132-pup8cnlaofd8r5bp0fpr5a03ee1duale.apps.googleusercontent.com', // Web用クライアントID
     iosClientId: '601234567890-iosdummyclientid.apps.googleusercontent.com', // iOS用クライアントID
     androidClientId: '601234567890-androiddummyclientid.apps.googleusercontent.com', // Android用クライアントID
   });
@@ -98,7 +98,7 @@ export default function LoginScreen() {
   const handleDemoLogin = async (type: 'admin' | 'user') => {
     const demoEmail = type === 'admin' ? 'admin@demo.com' : 'user@demo.com';
     const demoPassword = 'password123';
-    
+
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, demoEmail, demoPassword);
@@ -116,7 +116,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        
+
         {/* ロゴ / ヘッダー */}
         <View style={styles.header}>
           <View style={styles.logoIcon}>
@@ -156,8 +156,8 @@ export default function LoginScreen() {
             />
           </View>
 
-          <TouchableOpacity 
-            style={[styles.loginBtn, loading && styles.disabledBtn]} 
+          <TouchableOpacity
+            style={[styles.loginBtn, loading && styles.disabledBtn]}
             onPress={handleLogin}
             disabled={loading}
           >
@@ -179,8 +179,8 @@ export default function LoginScreen() {
           </View>
 
           {/* Google ログインボタン */}
-          <TouchableOpacity 
-            style={[styles.googleBtn, (!request || loading) && styles.disabledBtn]} 
+          <TouchableOpacity
+            style={[styles.googleBtn, (!request || loading) && styles.disabledBtn]}
             onPress={() => promptAsync()}
             disabled={!request || loading}
           >
@@ -196,8 +196,8 @@ export default function LoginScreen() {
         </View>
 
         {/* アカウント作成への誘導 */}
-        <TouchableOpacity 
-          style={styles.signupLink} 
+        <TouchableOpacity
+          style={styles.signupLink}
           onPress={() => router.push('/signup')}
         >
           <UserPlus size={16} color="#818cf8" style={styles.signupIcon} />
@@ -211,14 +211,14 @@ export default function LoginScreen() {
             <Text style={styles.demoTitle}>開発・テスト用かんたんログイン</Text>
           </View>
           <View style={styles.demoButtons}>
-            <TouchableOpacity 
-              style={[styles.demoBtn, styles.demoAdminBtn]} 
+            <TouchableOpacity
+              style={[styles.demoBtn, styles.demoAdminBtn]}
               onPress={() => handleDemoLogin('admin')}
             >
               <Text style={styles.demoBtnText}>管理者デモでログイン</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.demoBtn, styles.demoUserBtn]} 
+            <TouchableOpacity
+              style={[styles.demoBtn, styles.demoUserBtn]}
               onPress={() => handleDemoLogin('user')}
             >
               <Text style={styles.demoBtnText}>一般デモでログイン</Text>
