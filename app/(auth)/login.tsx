@@ -24,9 +24,7 @@ export default function LoginScreen() {
   //   取得した各クライアントIDを入力する必要があります。
   // =================================================================
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: '206177241132-pup8cnlaofd8r5bp0fpr5a03ee1duale.apps.googleusercontent.com', // Web用クライアントID
-    iosClientId: '206177241132-acgl6llo8jbmk0hsk7fsnh4fhbv4tf17.apps.googleusercontent.com', // iOS用クライアントID
-    androidClientId: '601234567890-androiddummyclientid.apps.googleusercontent.com', // Android用クライアントID
+    clientId: '206177241132-pup8cnlaofd8r5bp0fpr5a03ee1duale.apps.googleusercontent.com', // 共通のウェブ用クライアントIDのみを使用
   });
 
   // Google認証レスポンスの監視
