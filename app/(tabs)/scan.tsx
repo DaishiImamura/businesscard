@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Button, Alert } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -10,12 +10,15 @@ export default function ScanScreen() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const isScanningRef = useRef(true);
 
   // 画面フォーカス時にスキャンを有効化し、画面から外れるときはロックする
   useFocusEffect(
     React.useCallback(() => {
+      isScanningRef.current = true;
       setScanned(false);
       return () => {
+        isScanningRef.current = false;
         setScanned(true);
       };
     }, [])
@@ -49,7 +52,8 @@ export default function ScanScreen() {
   }
 
   const handleBarcodeScanned = async ({ type, data }: { type: string; data: string }) => {
-    // 連続して何回もスキャンされないようにロック
+    if (!isScanningRef.current) return;
+    isScanningRef.current = false;
     setScanned(true);
 
     try {
@@ -58,7 +62,7 @@ export default function ScanScreen() {
         Alert.alert(
           'エラー',
           '無効なQRコードです。デジタル名刺アプリで生成されたQRコードをスキャンしてください。',
-          [{ text: '再試行', onPress: () => setScanned(false) }]
+          [{ text: '再試行', onPress: () => { isScanningRef.current = true; setScanned(false); } }]
         );
         return;
       }
@@ -85,7 +89,10 @@ export default function ScanScreen() {
           {
             text: 'キャンセル',
             style: 'cancel',
-            onPress: () => setScanned(false),
+            onPress: () => {
+              isScanningRef.current = true;
+              setScanned(false);
+            },
           },
           {
             text: '登録する',
@@ -109,12 +116,15 @@ export default function ScanScreen() {
                   },
                   {
                     text: '続けてスキャン',
-                    onPress: () => setScanned(false),
+                    onPress: () => {
+                      isScanningRef.current = true;
+                      setScanned(false);
+                    },
                   },
                 ]);
               } else {
                 Alert.alert('エラー', '登録に失敗しました。', [
-                  { text: 'OK', onPress: () => setScanned(false) },
+                  { text: 'OK', onPress: () => { isScanningRef.current = true; setScanned(false); } },
                 ]);
               }
             },
@@ -124,7 +134,7 @@ export default function ScanScreen() {
     } catch (e) {
       console.error(e);
       Alert.alert('読み取りエラー', 'QRコードの解析に失敗しました。', [
-        { text: '再試行', onPress: () => setScanned(false) },
+        { text: '再試行', onPress: () => { isScanningRef.current = true; setScanned(false); } },
       ]);
     }
   };
