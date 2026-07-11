@@ -243,7 +243,6 @@ export default function WalletScreen() {
         />
       )}
 
-      {/* ================= DETAIL MODAL ================= */}
       <Modal
         visible={isDetailVisible}
         animationType="slide"
@@ -253,7 +252,6 @@ export default function WalletScreen() {
         <View style={styles.modalBg}>
           <SafeAreaView style={styles.modalContent} edges={['top', 'bottom']}>
             
-            {/* モーダルヘッダー */}
             <View style={styles.modalHeader}>
               <TouchableOpacity
                 onPress={() => handleToggleFavorite(detailCard?.id || '')}
@@ -274,7 +272,6 @@ export default function WalletScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* モーダルボディ */}
             <ScrollView contentContainerStyle={styles.modalScroll} showsVerticalScrollIndicator={false}>
               {detailCard && (
                 <>
@@ -292,7 +289,6 @@ export default function WalletScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  {/* 詳細メモやアクション */}
                   <View style={styles.detailCardInfoContainer}>
                     <Text style={styles.detailLabel}>メモ・登録情報</Text>
                     <View style={styles.detailCardInfo}>
@@ -320,7 +316,6 @@ export default function WalletScreen() {
         </View>
       </Modal>
 
-      {/* ================= FULL SCREEN CARD MODAL ================= */}
       <Modal
         visible={isExpanded}
         transparent={true}
@@ -344,7 +339,7 @@ export default function WalletScreen() {
                     <BusinessCard
                       data={detailCard}
                       enableParallax={true}
-                      cardWidth={SCREEN_WIDTH - 16} // 画面いっぱいの幅
+                      cardWidth={SCREEN_WIDTH - 16}
                     />
                   )}
                   <Text style={styles.expandedHintText}>タップして裏返せます</Text>
@@ -356,7 +351,7 @@ export default function WalletScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      <View style={{ height: 80 }} /> {/* タブバーのオーバーラップ回避 */}
+      <View style={{ height: 80 }} />
     </SafeAreaView>
   );
 }

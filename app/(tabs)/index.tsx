@@ -70,7 +70,6 @@ export default function MyCardScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
-        {/* ヘッダー */}
         <View style={styles.header}>
           <View>
             <Text style={styles.welcomeText}>Digital Card</Text>
@@ -82,12 +81,10 @@ export default function MyCardScreen() {
           </View>
         </View>
 
-        {/* インタラクティブ説明 */}
         <Text style={styles.hintText}>
           {isFlipped ? 'QRコードを相手に見せてスキャンしてもらえます' : 'カードをタップして裏返すか、ドラッグして傾きを楽しめます'}
         </Text>
 
-        {/* 3D名刺表示 */}
         <View style={styles.cardWrapper}>
           <BusinessCard
             data={myCard}
@@ -104,7 +101,6 @@ export default function MyCardScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* アクションボタン */}
         <View style={styles.actionSection}>
           <TouchableOpacity
             style={[styles.btn, styles.primaryBtn]}
@@ -123,7 +119,6 @@ export default function MyCardScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* 機能アピール領域 */}
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>デジタル名刺の魅力</Text>
           <Text style={styles.infoBody}>
@@ -132,10 +127,9 @@ export default function MyCardScreen() {
           </Text>
         </View>
 
-        <View style={{ height: 100 }} /> {/* タブバーにかぶらないように余白 */}
+        <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* ================= FULL SCREEN CARD MODAL ================= */}
       <Modal
         visible={isExpanded}
         transparent={true}
@@ -158,7 +152,7 @@ export default function MyCardScreen() {
                   <BusinessCard
                     data={myCard}
                     enableParallax={true}
-                    cardWidth={SCREEN_WIDTH - 16} // 画面いっぱいの幅
+                    cardWidth={SCREEN_WIDTH - 16}
                   />
                   <Text style={styles.expandedHintText}>タップして裏返せます</Text>
                 </View>
