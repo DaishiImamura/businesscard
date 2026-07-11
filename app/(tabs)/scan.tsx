@@ -81,11 +81,12 @@ export default function ScanScreen() {
             text: '登録する',
             onPress: async () => {
               // 登録処理
+              const originalTags = cardInfo.tags || [];
               const success = await addWalletCard({
                 ...cardInfo,
                 id: cardInfo.id, // そのまま元のIDを維持
                 isFavorite: false,
-                tags: cardInfo.tags.includes('自分') ? ['スキャン'] : [...cardInfo.tags, 'スキャン'], // スキャンタグを補完
+                tags: originalTags.includes('自分') ? ['スキャン'] : [...originalTags, 'スキャン'], // スキャンタグを補完
               });
 
               if (success) {
