@@ -340,8 +340,8 @@ export default function BusinessCard({
 
 const styles = StyleSheet.create({
   cardContainer: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
+    width: DEFAULT_CARD_WIDTH,
+    height: DEFAULT_CARD_HEIGHT,
     borderRadius: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
