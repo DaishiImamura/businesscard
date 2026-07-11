@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Button, Alert } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera, RefreshCw, X, ShieldAlert } from 'lucide-react-native';
 import { addWalletCard } from '../../src/utils/storage';
@@ -10,6 +10,16 @@ export default function ScanScreen() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+
+  // 画面フォーカス時にスキャンを有効化し、画面から外れるときはロックする
+  useFocusEffect(
+    React.useCallback(() => {
+      setScanned(false);
+      return () => {
+        setScanned(true);
+      };
+    }, [])
+  );
 
   // カメラ権限が読み込み中の場合
   if (!permission) {
@@ -94,7 +104,6 @@ export default function ScanScreen() {
                   {
                     text: '名刺入れを見る',
                     onPress: () => {
-                      setScanned(false);
                       router.push('/wallet');
                     },
                   },
