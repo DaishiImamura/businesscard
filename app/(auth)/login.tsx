@@ -21,9 +21,7 @@ export default function LoginScreen() {
 
   // デバッグ用：アプリが認識している実際のリダイレクトURIを画面に表示
   useEffect(() => {
-    const redirectUri = AuthSession.makeRedirectUri({
-      native: 'https://auth.expo.io/@daishiimamura/businesscard',
-    });
+    const redirectUri = 'https://auth.expo.io/@daishiimamura/businesscard';
     Alert.alert("デバッグ: 送信中リダイレクトURI", redirectUri);
     console.log("ACTUAL REDIRECT URI:", redirectUri);
   }, []);
@@ -35,9 +33,7 @@ export default function LoginScreen() {
   // =================================================================
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: '206177241132-pup8cnlaofd8r5bp0fpr5a03ee1duale.apps.googleusercontent.com', // 共通のウェブ用クライアントIDのみを使用
-    redirectUri: AuthSession.makeRedirectUri({
-      native: 'https://auth.expo.io/@daishiimamura/businesscard',
-    }),
+    redirectUri: 'https://auth.expo.io/@daishiimamura/businesscard', // 直接文字列で指定して環境判定をバイパス
   });
 
   // Google認証レスポンスの監視
