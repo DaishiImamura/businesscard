@@ -318,44 +318,44 @@ export default function WalletScreen() {
               )}
             </ScrollView>
 
-          </SafeAreaView>
-        </View>
-      </Modal>
+            <Modal
+              visible={isExpanded}
+              transparent={true}
+              animationType="fade"
+              onRequestClose={() => setIsExpanded(false)}
+            >
+              <TouchableWithoutFeedback onPress={() => setIsExpanded(false)}>
+                <View style={styles.expandedModalBg}>
+                  <SafeAreaView style={styles.expandedModalContent} edges={['top', 'bottom']}>
+                    
+                    <TouchableOpacity
+                      onPress={() => setIsExpanded(false)}
+                      style={styles.expandedCloseBtn}
+                    >
+                      <X size={24} color="#ffffff" />
+                    </TouchableOpacity>
 
-      <Modal
-        visible={isExpanded}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setIsExpanded(false)}
-      >
-        <TouchableWithoutFeedback onPress={() => setIsExpanded(false)}>
-          <View style={styles.expandedModalBg}>
-            <SafeAreaView style={styles.expandedModalContent} edges={['top', 'bottom']}>
-              
-              <TouchableOpacity
-                onPress={() => setIsExpanded(false)}
-                style={styles.expandedCloseBtn}
-              >
-                <X size={24} color="#ffffff" />
-              </TouchableOpacity>
+                    <TouchableWithoutFeedback>
+                      <View style={[styles.expandedCardWrapper, { height: finalLandscapeWidth, justifyContent: 'center' }]}>
+                        {detailCard && (
+                          <BusinessCard
+                            data={detailCard}
+                            enableParallax={true}
+                            cardWidth={finalLandscapeWidth}
+                            rotateMode="90"
+                          />
+                        )}
+                        <Text style={[styles.expandedHintText, { marginTop: 24 }]}>タップして裏返せます</Text>
+                      </View>
+                    </TouchableWithoutFeedback>
 
-              <TouchableWithoutFeedback>
-                <View style={[styles.expandedCardWrapper, { height: finalLandscapeWidth, justifyContent: 'center' }]}>
-                  {detailCard && (
-                    <BusinessCard
-                      data={detailCard}
-                      enableParallax={true}
-                      cardWidth={finalLandscapeWidth}
-                      rotateMode="90"
-                    />
-                  )}
-                  <Text style={[styles.expandedHintText, { marginTop: 24 }]}>タップして裏返せます</Text>
+                  </SafeAreaView>
                 </View>
               </TouchableWithoutFeedback>
+            </Modal>
 
-            </SafeAreaView>
-          </View>
-        </TouchableWithoutFeedback>
+          </SafeAreaView>
+        </View>
       </Modal>
 
       <View style={{ height: 80 }} />
