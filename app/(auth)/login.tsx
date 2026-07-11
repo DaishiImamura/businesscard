@@ -25,7 +25,7 @@ export default function LoginScreen() {
   // =================================================================
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: '206177241132-pup8cnlaofd8r5bp0fpr5a03ee1duale.apps.googleusercontent.com', // Web用クライアントID
-    iosClientId: '601234567890-iosdummyclientid.apps.googleusercontent.com', // iOS用クライアントID
+    iosClientId: '206177241132-acgl6llo8jbmk0hsk7fsnh4fhbv4tf17.apps.googleusercontent.com', // iOS用クライアントID
     androidClientId: '601234567890-androiddummyclientid.apps.googleusercontent.com', // Android用クライアントID
   });
 
