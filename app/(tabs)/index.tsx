@@ -146,7 +146,6 @@ export default function MyCardScreen() {
           <View style={styles.expandedModalBg}>
             <SafeAreaView style={styles.expandedModalContent} edges={['top', 'bottom']}>
               
-              {/* 閉じるボタン */}
               <TouchableOpacity
                 onPress={() => setIsExpanded(false)}
                 style={styles.expandedCloseBtn}
@@ -154,7 +153,6 @@ export default function MyCardScreen() {
                 <X size={24} color="#ffffff" />
               </TouchableOpacity>
 
-              {/* 拡大カード本体 */}
               <TouchableWithoutFeedback>
                 <View style={styles.expandedCardWrapper}>
                   <BusinessCard
