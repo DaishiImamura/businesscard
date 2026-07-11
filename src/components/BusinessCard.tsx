@@ -13,18 +13,28 @@ import QRCode from 'react-native-qrcode-svg';
 import { Phone, Mail, Globe, MapPin, Sparkles, RefreshCw } from 'lucide-react-native';
 import { BusinessCardData } from '../types/card';
 
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = width - 32;
-const CARD_HEIGHT = CARD_WIDTH * 0.58; // 黄金比に近い比率
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const DEFAULT_CARD_WIDTH = SCREEN_WIDTH - 32;
+const DEFAULT_CARD_HEIGHT = DEFAULT_CARD_WIDTH * 0.58;
 
 interface BusinessCardProps {
   data: BusinessCardData;
   onFlip?: (isFlipped: boolean) => void;
   enableParallax?: boolean;
+  cardWidth?: number;
 }
 
-export default function BusinessCard({ data, onFlip, enableParallax = true }: BusinessCardProps) {
+export default function BusinessCard({
+  data,
+  onFlip,
+  enableParallax = true,
+  cardWidth,
+}: BusinessCardProps) {
   const [flipped, setFlipped] = useState(false);
+
+  const currentWidth = cardWidth || DEFAULT_CARD_WIDTH;
+  const currentHeight = currentWidth * 0.58;
+  const scale = currentWidth / DEFAULT_CARD_WIDTH;
 
   // 3Dフリップ用の共有値 (0: 表, 180: 裏)
   const rotateY = useSharedValue(0);
@@ -51,8 +61,8 @@ export default function BusinessCard({ data, onFlip, enableParallax = true }: Bu
     .enabled(enableParallax)
     .onUpdate((event) => {
       // カードの中心からの相対距離をベースに傾き量を計算 (最大±15度)
-      const relativeX = (event.x - CARD_WIDTH / 2) / (CARD_WIDTH / 2);
-      const relativeY = (event.y - CARD_HEIGHT / 2) / (CARD_HEIGHT / 2);
+      const relativeX = (event.x - currentWidth / 2) / (currentWidth / 2);
+      const relativeY = (event.y - currentHeight / 2) / (currentHeight / 2);
       tiltX.value = -relativeY * 15; // Y方向のドラッグでX軸回転
       tiltY.value = relativeX * 15;  // X方向のドラッグでY軸回転
     })
@@ -156,7 +166,7 @@ export default function BusinessCard({ data, onFlip, enableParallax = true }: Bu
 
   return (
     <GestureDetector gesture={dragGesture}>
-      <Animated.View style={[styles.cardContainer, animatedCardStyle]}>
+      <Animated.View style={[styles.cardContainer, { width: currentWidth, height: currentHeight, borderRadius: 20 * scale }, animatedCardStyle]}>
         
         {/* === CARD FRONT === */}
         <Animated.View
@@ -166,6 +176,8 @@ export default function BusinessCard({ data, onFlip, enableParallax = true }: Bu
             {
               backgroundColor: data.design.gradientStart,
               borderColor: 'rgba(255, 255, 255, 0.12)',
+              borderRadius: 20 * scale,
+              padding: 20 * scale,
             },
           ]}
         >
@@ -179,23 +191,25 @@ export default function BusinessCard({ data, onFlip, enableParallax = true }: Bu
           {renderPattern()}
 
           {/* グラスモルフィズム風の白いぼかし光沢効果 */}
-          {data.design.cardPattern === 'glass' && <View style={styles.glassGlow} pointerEvents="none" />}
+          {data.design.cardPattern === 'glass' && (
+            <View style={[styles.glassGlow, { borderRadius: 20 * scale }]} pointerEvents="none" />
+          )}
 
           {/* 表コンテンツ */}
           <View style={styles.cardHeader}>
             <View style={styles.headerTextContainer}>
-              <Text style={[styles.companyText, { color: data.design.textColor }]}>
+              <Text style={[styles.companyText, { color: data.design.textColor, fontSize: 16 * scale }]}>
                 {data.company}
               </Text>
-              <Text style={[styles.roleText, { color: data.design.textColor, opacity: 0.8 }]}>
+              <Text style={[styles.roleText, { color: data.design.textColor, opacity: 0.8, fontSize: 12 * scale, marginTop: 2 * scale }]}>
                 {data.role}
               </Text>
             </View>
             {data.logo ? (
-              <Image source={{ uri: data.logo }} style={styles.logoImage} />
+              <Image source={{ uri: data.logo }} style={[styles.logoImage, { width: 32 * scale, height: 32 * scale, borderRadius: 6 * scale }]} />
             ) : (
-              <View style={[styles.logoPlaceholder, { borderColor: data.design.textColor }]}>
-                <Sparkles size={16} color={data.design.textColor} />
+              <View style={[styles.logoPlaceholder, { borderColor: data.design.textColor, width: 32 * scale, height: 32 * scale, borderRadius: 16 * scale }]}>
+                <Sparkles size={16 * scale} color={data.design.textColor} />
               </View>
             )}
           </View>
@@ -203,10 +217,10 @@ export default function BusinessCard({ data, onFlip, enableParallax = true }: Bu
           <View style={styles.cardBody}>
             <View style={styles.mainInfo}>
               {data.avatar && (
-                <Image source={{ uri: data.avatar }} style={styles.avatarImage} />
+                <Image source={{ uri: data.avatar }} style={[styles.avatarImage, { width: 50 * scale, height: 50 * scale, borderRadius: 25 * scale, marginRight: 16 * scale }]} />
               )}
               <View style={styles.nameContainer}>
-                <Text style={[styles.nameText, { color: data.design.textColor }]}>
+                <Text style={[styles.nameText, { color: data.design.textColor, fontSize: 24 * scale }]}>
                   {data.name}
                 </Text>
               </View>
@@ -216,23 +230,23 @@ export default function BusinessCard({ data, onFlip, enableParallax = true }: Bu
           <View style={styles.cardFooter}>
             <View style={styles.contactRow}>
               {data.phone ? (
-                <TouchableOpacity onPress={handlePhonePress} style={styles.contactIcon}>
-                  <Phone size={14} color={data.design.textColor} />
-                  <Text style={[styles.contactText, { color: data.design.textColor }]} numberOfLines={1}>
+                <TouchableOpacity onPress={handlePhonePress} style={[styles.contactIcon, { marginTop: 4 * scale }]}>
+                  <Phone size={14 * scale} color={data.design.textColor} />
+                  <Text style={[styles.contactText, { color: data.design.textColor, fontSize: 11 * scale, marginLeft: 6 * scale }]} numberOfLines={1}>
                     {data.phone}
                   </Text>
                 </TouchableOpacity>
               ) : null}
-              <TouchableOpacity onPress={handleEmailPress} style={styles.contactIcon}>
-                <Mail size={14} color={data.design.textColor} />
-                <Text style={[styles.contactText, { color: data.design.textColor }]} numberOfLines={1}>
+              <TouchableOpacity onPress={handleEmailPress} style={[styles.contactIcon, { marginTop: 4 * scale }]}>
+                <Mail size={14 * scale} color={data.design.textColor} />
+                <Text style={[styles.contactText, { color: data.design.textColor, fontSize: 11 * scale, marginLeft: 6 * scale }]} numberOfLines={1}>
                   {data.email}
                 </Text>
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity onPress={toggleFlip} style={styles.flipBtn}>
-              <RefreshCw size={14} color={data.design.textColor} />
+            <TouchableOpacity onPress={toggleFlip} style={[styles.flipBtn, { width: 28 * scale, height: 28 * scale, borderRadius: 14 * scale }]}>
+              <RefreshCw size={14 * scale} color={data.design.textColor} />
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -245,6 +259,8 @@ export default function BusinessCard({ data, onFlip, enableParallax = true }: Bu
             {
               backgroundColor: data.design.gradientStart,
               borderColor: 'rgba(255, 255, 255, 0.12)',
+              borderRadius: 20 * scale,
+              padding: 20 * scale,
             },
           ]}
         >
@@ -259,52 +275,59 @@ export default function BusinessCard({ data, onFlip, enableParallax = true }: Bu
 
           {/* 裏コンテンツ */}
           <View style={styles.backContainer}>
-            <View style={styles.qrSection}>
+            <View style={[styles.qrSection, { marginRight: 20 * scale }]}>
               {qrValue ? (
-                <View style={styles.qrWrapper}>
-                  <QRCode value={qrValue} size={90} backgroundColor="white" quietZone={6} />
+                <View style={[styles.qrWrapper, { padding: 8 * scale, borderRadius: 12 * scale }]}>
+                  <QRCode value={qrValue} size={90 * scale} backgroundColor="white" quietZone={6 * scale} />
                 </View>
               ) : null}
-              <Text style={[styles.qrLabel, { color: data.design.textColor }]}>
+              <Text style={[styles.qrLabel, { color: data.design.textColor, fontSize: 9 * scale, marginTop: 6 * scale }]}>
                 スキャンして連絡先を登録
               </Text>
             </View>
 
             <View style={styles.backInfoSection}>
-              <Text style={[styles.backName, { color: data.design.textColor }]}>
+              <Text style={[styles.backName, { color: data.design.textColor, fontSize: 18 * scale }]}>
                 {data.name}
               </Text>
-              <Text style={[styles.backRole, { color: data.design.textColor, opacity: 0.8 }]}>
+              <Text style={[styles.backRole, { color: data.design.textColor, opacity: 0.8, fontSize: 10 * scale, marginTop: 2 * scale }]}>
                 {data.company} / {data.role}
               </Text>
 
               {/* メモまたはウェブ・SNSリンク */}
-              <View style={styles.backLinks}>
+              <View style={[styles.backLinks, { marginTop: 8 * scale }]}>
                 {data.website ? (
-                  <TouchableOpacity onPress={handleWebsitePress} style={styles.backLinkItem}>
-                    <Globe size={12} color={data.design.textColor} />
-                    <Text style={[styles.backLinkText, { color: data.design.textColor }]} numberOfLines={1}>
+                  <TouchableOpacity onPress={handleWebsitePress} style={[styles.backLinkItem, { marginTop: 3 * scale }]}>
+                    <Globe size={12 * scale} color={data.design.textColor} />
+                    <Text style={[styles.backLinkText, { color: data.design.textColor, fontSize: 10 * scale, marginLeft: 4 * scale }]} numberOfLines={1}>
                       {data.website}
                     </Text>
                   </TouchableOpacity>
                 ) : null}
                 {data.address ? (
-                  <TouchableOpacity onPress={handleAddressPress} style={styles.backLinkItem}>
-                    <MapPin size={12} color={data.design.textColor} />
-                    <Text style={[styles.backLinkText, { color: data.design.textColor }]} numberOfLines={1}>
+                  <TouchableOpacity onPress={handleAddressPress} style={[styles.backLinkItem, { marginTop: 3 * scale }]}>
+                    <MapPin size={12 * scale} color={data.design.textColor} />
+                    <Text style={[styles.backLinkText, { color: data.design.textColor, fontSize: 10 * scale, marginLeft: 4 * scale }]} numberOfLines={1}>
                       {data.address}
                     </Text>
                   </TouchableOpacity>
                 ) : null}
                 {data.memo ? (
-                  <Text style={[styles.backMemoText, { color: data.design.textColor }]} numberOfLines={3}>
+                  <Text style={[styles.backMemoText, { color: data.design.textColor, fontSize: 9 * scale, marginTop: 6 * scale, lineHeight: 12 * scale }]} numberOfLines={3}>
                     {data.memo}
                   </Text>
                 ) : null}
               </View>
 
-              <TouchableOpacity onPress={toggleFlip} style={[styles.flipBtn, styles.flipBtnBack]}>
-                <RefreshCw size={14} color={data.design.textColor} />
+              <TouchableOpacity
+                onPress={toggleFlip}
+                style={[
+                  styles.flipBtn,
+                  styles.flipBtnBack,
+                  { width: 28 * scale, height: 28 * scale, borderRadius: 14 * scale, bottom: 0, right: 0 },
+                ]}
+              >
+                <RefreshCw size={14 * scale} color={data.design.textColor} />
               </TouchableOpacity>
             </View>
           </View>

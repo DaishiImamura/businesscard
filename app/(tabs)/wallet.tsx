@@ -9,13 +9,17 @@ import {
   FlatList,
   Alert,
   Modal,
+  Dimensions,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, Star, Trash2, Plus, X, Tag } from 'lucide-react-native';
+import { Search, Star, Trash2, Plus, X, Tag, Maximize2 } from 'lucide-react-native';
 import { getWalletCards, toggleFavorite, deleteWalletCard } from '../../src/utils/storage';
 import { BusinessCardData } from '../../src/types/card';
 import BusinessCard from '../../src/components/BusinessCard';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function WalletScreen() {
   const router = useRouter();
@@ -26,6 +30,7 @@ export default function WalletScreen() {
   // 詳細表示用のモーダル管理
   const [detailCard, setDetailCard] = useState<BusinessCardData | null>(null);
   const [isDetailVisible, setIsDetailVisible] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // 画面フォーカス時に再ロード
   useFocusEffect(
@@ -277,6 +282,14 @@ export default function WalletScreen() {
                   
                   <View style={styles.modalCardWrapper}>
                     <BusinessCard data={detailCard} enableParallax={true} />
+                    <TouchableOpacity
+                      style={styles.expandIconBtn}
+                      onPress={() => setIsExpanded(true)}
+                      activeOpacity={0.8}
+                    >
+                      <Maximize2 size={16} color="#ffffff" />
+                      <Text style={styles.expandIconBtnText}>拡大表示</Text>
+                    </TouchableOpacity>
                   </View>
 
                   {/* 詳細メモやアクション */}
@@ -305,6 +318,44 @@ export default function WalletScreen() {
 
           </SafeAreaView>
         </View>
+      </Modal>
+
+      {/* ================= FULL SCREEN CARD MODAL ================= */}
+      <Modal
+        visible={isExpanded}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsExpanded(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setIsExpanded(false)}>
+          <View style={styles.expandedModalBg}>
+            <SafeAreaView style={styles.expandedModalContent} edges={['top', 'bottom']}>
+              
+              {/* 閉じるボタン */}
+              <TouchableOpacity
+                onPress={() => setIsExpanded(false)}
+                style={styles.expandedCloseBtn}
+              >
+                <X size={24} color="#ffffff" />
+              </TouchableOpacity>
+
+              {/* 拡大カード本体 */}
+              <TouchableWithoutFeedback>
+                <View style={styles.expandedCardWrapper}>
+                  {detailCard && (
+                    <BusinessCard
+                      data={detailCard}
+                      enableParallax={true}
+                      cardWidth={SCREEN_WIDTH - 16} // 画面いっぱいの幅
+                    />
+                  )}
+                  <Text style={styles.expandedHintText}>タップして裏返せます</Text>
+                </View>
+              </TouchableWithoutFeedback>
+
+            </SafeAreaView>
+          </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       <View style={{ height: 80 }} /> {/* タブバーのオーバーラップ回避 */}
@@ -602,5 +653,65 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     fontSize: 14,
     fontWeight: '700',
+  },
+  expandIconBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(30, 41, 59, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginTop: 12,
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    alignSelf: 'center',
+  },
+  expandIconBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  expandedModalBg: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.98)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  expandedModalContent: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  expandedCloseBtn: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  expandedCardWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  expandedHintText: {
+    color: '#64748b',
+    fontSize: 13,
+    marginTop: 20,
+    fontStyle: 'italic',
   },
 });
