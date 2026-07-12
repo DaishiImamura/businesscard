@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
+import * as Google from 'expo-auth-session/providers/google';
 import { LogIn, Mail, Lock, UserPlus, ShieldAlert, Chrome } from 'lucide-react-native';
 import { auth, db } from '../../src/utils/firebase';
 
@@ -19,72 +19,48 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   // =================================================================
-  // Google ログイン設定 (Firebase 直接連携方式)
-  // ※Expoプロキシ(auth.expo.io)を使用しないため、EASパブリッシュを行っていない
-  //   ローカル開発環境のExpo Goからでも100%確実にGoogleログインが動作します。
+  // Google ログイン設定 (Expo Auth Session 公式プロバイダ)
+  // redirectUriに固定プロキシを指定し、ローカルIPへのブレを防ぎます。
   // =================================================================
-  const handleGoogleSignIn = async () => {
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    clientId: '206177241132-pup8cnlaofd8r5bp0fpr5a03ee1duale.apps.googleusercontent.com', // ウェブ用クライアントID
+    redirectUri: 'https://auth.expo.io/@daishiimamura/businesscard', // リダイレクトURIを固定
+  });
+
+  // Google認証レスポンスの監視
+  useEffect(() => {
+    if (response?.type === 'success' && response.authentication?.idToken) {
+      const { idToken } = response.authentication;
+      handleGoogleSignIn(idToken);
+    }
+  }, [response]);
+
+  // Googleアカウントによるログイン ＆ 新規ユーザー初期化処理
+  const handleGoogleSignIn = async (idToken: string) => {
     setLoading(true);
     try {
-      // 1. アプリのカスタムスキーム用のリダイレクトURIを作成 (例: businesscard://expo-auth-session)
-      const redirectUrl = Linking.createURL('expo-auth-session');
-      console.log('Generated Redirect URL:', redirectUrl);
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCredential = await signInWithCredential(auth, credential);
+      const user = userCredential.user;
 
-      // 2. Firebase Authentication の Google ログイン用ハンドラ URL を構築
-      const firebaseProjectId = auth.app.options.projectId;
-      const apiKey = auth.app.options.apiKey;
-      
-      // Firebase の Google ログイン開始エンドポイント (Redirect型)
-      const authUrl = `https://${firebaseProjectId}.firebaseapp.com/__/auth/handler?` + 
-        `apiKey=${apiKey}&` +
-        `appName=%5BDEFAULT%5D&` +
-        `authType=signInWithRedirect&` +
-        `providerId=google.com&` +
-        `scopes=email%2Cprofile%2Copenid&` +
-        `redirectUrl=${encodeURIComponent(redirectUrl)}`;
+      // 初めてログインしたユーザーの場合、Firestoreにユーザープロフィールを作成
+      const userDocRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userDocRef);
 
-      // 3. アプリ内ブラウザ (WebBrowser) で Firebase 認証ページを開く
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
-
-      if (result.type === 'success' && result.url) {
-        // 4. リダイレクトされたURLから認証パラメータ (id_token) を抽出
-        const parsedUrl = Linking.parse(result.url);
-        const params = parsedUrl.queryParams;
-        
-        const idToken = params?.id_token as string;
-        const accessToken = params?.access_token as string;
-
-        if (idToken) {
-          const credential = GoogleAuthProvider.credential(idToken, accessToken);
-          const userCredential = await signInWithCredential(auth, credential);
-          const user = userCredential.user;
-
-          // 初めてログインしたユーザーの場合、Firestoreにユーザープロフィールを作成
-          const userDocRef = doc(db, 'users', user.uid);
-          const userSnap = await getDoc(userDocRef);
-
-          if (!userSnap.exists()) {
-            await setDoc(userDocRef, {
-              id: user.uid,
-              name: user.displayName || 'Google ユーザー',
-              email: user.email?.toLowerCase() || '',
-              role: 'user', // デフォルト一般ユーザー
-              purchasedTemplates: [],
-              createdAt: new Date().toISOString(),
-            });
-          }
-
-          router.replace('/(tabs)');
-        } else {
-          throw new Error('URLパラメーターに ID トークンが見つかりません。');
-        }
-      } else if (result.type === 'cancel') {
-        console.log('Google Sign-In cancelled by user');
-      } else {
-        throw new Error('ブラウザの認証セッションが正常に完了しませんでした。');
+      if (!userSnap.exists()) {
+        await setDoc(userDocRef, {
+          id: user.uid,
+          name: user.displayName || 'Google ユーザー',
+          email: user.email?.toLowerCase() || '',
+          role: 'user', // デフォルト一般ユーザー
+          purchasedTemplates: [],
+          createdAt: new Date().toISOString(),
+        });
       }
+
+      router.replace('/(tabs)');
     } catch (error: any) {
-      console.error('Google Sign-in failed:', error);
+      console.error('Google Sign-in failed', error);
       Alert.alert('Googleログインエラー', 'Googleアカウントでの認証に失敗しました。');
     } finally {
       setLoading(false);
@@ -202,9 +178,9 @@ export default function LoginScreen() {
 
           {/* Google ログインボタン */}
           <TouchableOpacity 
-            style={[styles.googleBtn, loading && styles.disabledBtn]} 
-            onPress={handleGoogleSignIn}
-            disabled={loading}
+            style={[styles.googleBtn, (!request || loading) && styles.disabledBtn]} 
+            onPress={() => promptAsync()}
+            disabled={!request || loading}
           >
             {loading ? (
               <ActivityIndicator color="#64748b" />
