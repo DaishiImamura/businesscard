@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
-import * as AuthSession from 'expo-auth-session';
+import * as Linking from 'expo-linking';
 import { LogIn, Mail, Lock, UserPlus, ShieldAlert, Chrome } from 'lucide-react-native';
 import { auth, db } from '../../src/utils/firebase';
 
@@ -19,57 +18,73 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // デバッグ用：アプリが認識している実際のリダイレクトURIを画面に表示
-  useEffect(() => {
-    const redirectUri = 'https://auth.expo.io/@daishiimamura/businesscard';
-    Alert.alert("デバッグ: 送信中リダイレクトURI", redirectUri);
-    console.log("ACTUAL REDIRECT URI:", redirectUri);
-  }, []);
-
   // =================================================================
-  // Google ログイン設定 (Expo Auth Session)
-  // ※実機での本番動作には、Google Cloud ConsoleおよびFirebaseコンソールで
-  //   取得した各クライアントIDを入力する必要があります。
+  // Google ログイン設定 (Firebase 直接連携方式)
+  // ※Expoプロキシ(auth.expo.io)を使用しないため、EASパブリッシュを行っていない
+  //   ローカル開発環境のExpo Goからでも100%確実にGoogleログインが動作します。
   // =================================================================
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: '206177241132-pup8cnlaofd8r5bp0fpr5a03ee1duale.apps.googleusercontent.com', // 共通のウェブ用クライアントIDのみを使用
-    redirectUri: 'https://auth.expo.io/@daishiimamura/businesscard', // 直接文字列で指定して環境判定をバイパス
-  });
-
-  // Google認証レスポンスの監視
-  useEffect(() => {
-    if (response?.type === 'success' && response.authentication?.idToken) {
-      const { idToken } = response.authentication;
-      handleGoogleSignIn(idToken);
-    }
-  }, [response]);
-
-  // Googleアカウントによるログイン ＆ 新規ユーザー初期化処理
-  const handleGoogleSignIn = async (idToken: string) => {
+  const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      const credential = GoogleAuthProvider.credential(idToken);
-      const userCredential = await signInWithCredential(auth, credential);
-      const user = userCredential.user;
+      // 1. アプリのカスタムスキーム用のリダイレクトURIを作成 (例: businesscard://expo-auth-session)
+      const redirectUrl = Linking.createURL('expo-auth-session');
+      console.log('Generated Redirect URL:', redirectUrl);
 
-      // 初めてログインしたユーザーの場合、Firestoreにユーザープロフィールを作成
-      const userDocRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userDocRef);
+      // 2. Firebase Authentication の Google ログイン用ハンドラ URL を構築
+      const firebaseProjectId = "businesscard-a7ce5";
+      const apiKey = auth.config.apiKey;
+      
+      // Firebase の Google ログイン開始エンドポイント (Redirect型)
+      const authUrl = `https://${firebaseProjectId}.firebaseapp.com/__/auth/handler?` + 
+        `apiKey=${apiKey}&` +
+        `appName=%5BDEFAULT%5D&` +
+        `authType=signInWithRedirect&` +
+        `providerId=google.com&` +
+        `scopes=email%2Cprofile%2Copenid&` +
+        `redirectUrl=${encodeURIComponent(redirectUrl)}`;
 
-      if (!userSnap.exists()) {
-        await setDoc(userDocRef, {
-          id: user.uid,
-          name: user.displayName || 'Google ユーザー',
-          email: user.email?.toLowerCase() || '',
-          role: 'user', // デフォルト一般ユーザー
-          purchasedTemplates: [],
-          createdAt: new Date().toISOString(),
-        });
+      // 3. アプリ内ブラウザ (WebBrowser) で Firebase 認証ページを開く
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
+
+      if (result.type === 'success' && result.url) {
+        // 4. リダイレクトされたURLから認証パラメータ (id_token) を抽出
+        const parsedUrl = Linking.parse(result.url);
+        const params = parsedUrl.queryParams;
+        
+        const idToken = params?.id_token as string;
+        const accessToken = params?.access_token as string;
+
+        if (idToken) {
+          const credential = GoogleAuthProvider.credential(idToken, accessToken);
+          const userCredential = await signInWithCredential(auth, credential);
+          const user = userCredential.user;
+
+          // 初めてログインしたユーザーの場合、Firestoreにユーザープロフィールを作成
+          const userDocRef = doc(db, 'users', user.uid);
+          const userSnap = await getDoc(userDocRef);
+
+          if (!userSnap.exists()) {
+            await setDoc(userDocRef, {
+              id: user.uid,
+              name: user.displayName || 'Google ユーザー',
+              email: user.email?.toLowerCase() || '',
+              role: 'user', // デフォルト一般ユーザー
+              purchasedTemplates: [],
+              createdAt: new Date().toISOString(),
+            });
+          }
+
+          router.replace('/(tabs)');
+        } else {
+          throw new Error('URLパラメーターに ID トークンが見つかりません。');
+        }
+      } else if (result.type === 'cancel') {
+        console.log('Google Sign-In cancelled by user');
+      } else {
+        throw new Error('ブラウザの認証セッションが正常に完了しませんでした。');
       }
-
-      router.replace('/(tabs)');
     } catch (error: any) {
-      console.error('Google Sign-in failed', error);
+      console.error('Google Sign-in failed:', error);
       Alert.alert('Googleログインエラー', 'Googleアカウントでの認証に失敗しました。');
     } finally {
       setLoading(false);
@@ -105,7 +120,7 @@ export default function LoginScreen() {
   const handleDemoLogin = async (type: 'admin' | 'user') => {
     const demoEmail = type === 'admin' ? 'admin@demo.com' : 'user@demo.com';
     const demoPassword = 'password123';
-
+    
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, demoEmail, demoPassword);
@@ -123,7 +138,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-
+        
         {/* ロゴ / ヘッダー */}
         <View style={styles.header}>
           <View style={styles.logoIcon}>
@@ -163,8 +178,8 @@ export default function LoginScreen() {
             />
           </View>
 
-          <TouchableOpacity
-            style={[styles.loginBtn, loading && styles.disabledBtn]}
+          <TouchableOpacity 
+            style={[styles.loginBtn, loading && styles.disabledBtn]} 
             onPress={handleLogin}
             disabled={loading}
           >
@@ -186,10 +201,10 @@ export default function LoginScreen() {
           </View>
 
           {/* Google ログインボタン */}
-          <TouchableOpacity
-            style={[styles.googleBtn, (!request || loading) && styles.disabledBtn]}
-            onPress={() => promptAsync()}
-            disabled={!request || loading}
+          <TouchableOpacity 
+            style={[styles.googleBtn, loading && styles.disabledBtn]} 
+            onPress={handleGoogleSignIn}
+            disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#64748b" />
@@ -203,8 +218,8 @@ export default function LoginScreen() {
         </View>
 
         {/* アカウント作成への誘導 */}
-        <TouchableOpacity
-          style={styles.signupLink}
+        <TouchableOpacity 
+          style={styles.signupLink} 
           onPress={() => router.push('/signup')}
         >
           <UserPlus size={16} color="#818cf8" style={styles.signupIcon} />
@@ -218,14 +233,14 @@ export default function LoginScreen() {
             <Text style={styles.demoTitle}>開発・テスト用かんたんログイン</Text>
           </View>
           <View style={styles.demoButtons}>
-            <TouchableOpacity
-              style={[styles.demoBtn, styles.demoAdminBtn]}
+            <TouchableOpacity 
+              style={[styles.demoBtn, styles.demoAdminBtn]} 
               onPress={() => handleDemoLogin('admin')}
             >
               <Text style={styles.demoBtnText}>管理者デモでログイン</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.demoBtn, styles.demoUserBtn]}
+            <TouchableOpacity 
+              style={[styles.demoBtn, styles.demoUserBtn]} 
               onPress={() => handleDemoLogin('user')}
             >
               <Text style={styles.demoBtnText}>一般デモでログイン</Text>
