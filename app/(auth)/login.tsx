@@ -31,8 +31,8 @@ export default function LoginScreen() {
       console.log('Generated Redirect URL:', redirectUrl);
 
       // 2. Firebase Authentication の Google ログイン用ハンドラ URL を構築
-      const firebaseProjectId = "businesscard-a7ce5";
-      const apiKey = auth.config.apiKey;
+      const firebaseProjectId = auth.app.options.projectId;
+      const apiKey = auth.app.options.apiKey;
       
       // Firebase の Google ログイン開始エンドポイント (Redirect型)
       const authUrl = `https://${firebaseProjectId}.firebaseapp.com/__/auth/handler?` + 
